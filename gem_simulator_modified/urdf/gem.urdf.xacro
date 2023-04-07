@@ -1141,7 +1141,7 @@
 
   <xacro:if value="${laser_points}">
 
-    <xacro:include filename="$(find gem_description)/urdf/sick_laser_points.gazebo"/>
+    <xacro:include filename="$(find gem_simulator_modified)/urdf/sick_laser_points.gazebo"/>
 
     <xacro:property name="front_laser_size" value="0.25"/>
 
@@ -1387,27 +1387,3 @@
   <!-- *************************************************************** -->
 
 </robot>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
