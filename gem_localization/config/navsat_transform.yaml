@@ -1,0 +1,8 @@
+frequency: 20
+magnetic_declination_radians: 0
+broadcast_cartesian_transform: false
+wait_for_datum: true
+use_odometry_yaw: false
+yaw_offset: 0
+publish_filtered_gps: true
+datum: [40.09302494, -88.23575484]
