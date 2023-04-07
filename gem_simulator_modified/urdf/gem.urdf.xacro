@@ -14,7 +14,7 @@
   <xacro:property name="velodyne_points" value="$(arg velodyne_points)"/>
   <xacro:property name="laser_points" value="$(arg laser_points)"/>
 
-  <xacro:include filename="$(find gem_description)/urdf/gem.gazebo" />
+  <xacro:include filename="$(find gem_simulator_modified)/urdf/gem.gazebo" />
 
   <xacro:include filename="$(find gem_description)/urdf/materials.xacro" />
 
