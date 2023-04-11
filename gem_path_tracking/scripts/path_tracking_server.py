@@ -15,7 +15,13 @@ class GemMPC:
         rospy.loginfo("Server initialized")
 
     def execute_action(self, goal):
+        rospy.loginfo("Goal received")
+        
+        rospy.loginfo("Path len: "+str(len(goal.path.poses)))
+        
         self.server.set_succeeded()
+        rospy.loginfo("Goal finished")
+        
 
 
 if __name__ == '__main__':

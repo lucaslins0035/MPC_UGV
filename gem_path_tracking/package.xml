@@ -58,6 +58,9 @@
   <exec_depend>actionlib_msgs</exec_depend>
 
   <depend>gem_interfaces</depend>
+  <depend>std_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

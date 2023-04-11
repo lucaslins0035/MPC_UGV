@@ -12,6 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   gem_interfaces
   actionlib_msgs 
   actionlib
+  geometry_msgs
+  nav_msgs
+  std_msgs
 )
 
 ## System dependencies are found with CMake's conventions
