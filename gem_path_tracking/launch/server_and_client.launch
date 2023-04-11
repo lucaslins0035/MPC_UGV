@@ -1,0 +1,8 @@
+<launch>
+    <node pkg="gem_path_tracking" type="path_tracking_server.py"
+        name="path_tracking_server" respawn="true" output="screen">
+    </node>
+
+    <node pkg="gem_path_tracking" type="path_tracking_client.py" name="path_tracking_client">
+    </node>
+</launch>
