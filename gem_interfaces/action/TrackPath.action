@@ -1,5 +1,6 @@
 nav_msgs/Path path
 ---
+float64[] path_tracking_error
 uint32 result
 ---
 float32 percent_complete

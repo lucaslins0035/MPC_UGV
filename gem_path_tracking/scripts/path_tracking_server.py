@@ -11,14 +11,14 @@ import tf2_ros
 from ackermann_msgs.msg import AckermannDrive
 from tf.transformations import euler_from_quaternion
 
-from gem_interfaces.msg import TrackPathAction
+from gem_interfaces.msg import TrackPathAction, TrackPathResult
 
 
 class TrackPathServer:
     def __init__(self):
         self.init_tf = None
         self.stop_getting_tf = False
-        self.path_tracking_accuracy = []
+        self.path_tracking_error = []
         self.path_index = 0
 
         self.tfBuffer = tf2_ros.Buffer()
@@ -202,13 +202,12 @@ class TrackPathServer:
             self.setup_controller(goal)
         except:
             rospy.logerr("Failed setting up Controller! Aborting...")
-            self.server.set_aborted()
+            self.server.set_aborted(TrackPathResult(result=1))
             self.stop_getting_tf = True
             self.tf_thread.join()
             self.init_tf = None
             return  # TODO Necessary?
 
-        # TODO check finihsing process
         while self.init_tf is None:
             rospy.logwarn_throttle(
                 2.0, "Waiting for a TF from 'odom' to 'base_footprint' to became available.")
@@ -224,7 +223,7 @@ class TrackPathServer:
         control_rate = rospy.Rate(1/self.mpc.t_step)
 
         self.path_index = 0
-        self.path_tracking_accuracy = []
+        self.path_tracking_error = []
 
         # Run control loop until the robot is less then 0.25 m away from the last pose of the path
         rospy.loginfo("Starting control loop")
@@ -266,7 +265,7 @@ class TrackPathServer:
                                goal.path.poses[self.path_index-1].pose.position.x)**2 +
                               (goal.path.poses[self.path_index].pose.position.y -
                                goal.path.poses[self.path_index-1].pose.position.y)**2)
-                self.path_tracking_accuracy.append(dist)
+                self.path_tracking_error.append(dist)
                 rospy.loginfo_throttle(
                     1.0, "Path tracking error: {}".format(dist))
 
@@ -284,7 +283,9 @@ class TrackPathServer:
         control_msg = AckermannDrive()
         self.ackerman_pub.publish(control_msg)
 
-        self.server.set_succeeded()
+        self.server.set_succeeded(
+            TrackPathResult(result=0,
+                            path_tracking_error=self.path_tracking_error))
         self.stop_getting_tf = True
         self.tf_thread.join()
         self.init_tf = None
