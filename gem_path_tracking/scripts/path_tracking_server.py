@@ -142,8 +142,10 @@ class TrackPathServer:
 
         def tvp_fun(t_now):
             for k in range(n_horizon+1):
-                tvp_template['_tvp', k, 'x_set'] = self.path_x_cp[0]
-                tvp_template['_tvp', k, 'y_set'] = self.path_y_cp[0]
+                tvp_template['_tvp', k,
+                             'x_set'] = self.path_x_cp[self.path_index]
+                tvp_template['_tvp', k,
+                             'y_set'] = self.path_y_cp[self.path_index]
 
             return tvp_template
 
@@ -227,18 +229,16 @@ class TrackPathServer:
         # Run control loop until the robot is less then 0.25 m away from the last pose of the path
         rospy.loginfo("Starting control loop")
         while not rospy.is_shutdown() and \
-                len(self.path_x_cp) > 1 and \
-                len(self.path_y_cp) > 1 and \
-                math.sqrt((x0[0, 0]-self.path_x_cp[-1])**2 + (x0[1, 0]-self.path_y_cp[-1])**2) > 0.25:
+                self.path_index <= len(self.path_x_cp)-1 and \
+                self.path_index <= len(self.path_y_cp)-1 and \
+                math.sqrt((x0[0, 0]-self.path_x_cp[-1])**2 + (x0[1, 0]-self.path_y_cp[-1])**2) > 0.5:
 
             start_loop_time = rospy.get_rostime()
 
             # Remove reached or passed path points
-            while math.sqrt((x0[0, 0]-self.path_x_cp[0])**2 + (x0[1, 0]-self.path_y_cp[0])**2) < 2.0 and \
-                    len(self.path_x_cp) > 1 and \
-                    len(self.path_y_cp) > 1:
-                self.path_x_cp.pop(0)
-                self.path_y_cp.pop(0)
+            while math.sqrt((x0[0, 0]-self.path_x_cp[self.path_index])**2 + (x0[1, 0]-self.path_y_cp[self.path_index])**2) < 2.0 and \
+                    self.path_index < len(self.path_x_cp)-1 and \
+                    self.path_index < len(self.path_y_cp)-1:
                 self.path_index = self.path_index + 1
 
             # Run the optimizer to find the next control effort
@@ -279,6 +279,10 @@ class TrackPathServer:
 
             # Get next state
             x0 = self.init_tf
+
+        # Stop the robot
+        control_msg = AckermannDrive()
+        self.ackerman_pub.publish(control_msg)
 
         self.server.set_succeeded()
         self.stop_getting_tf = True
