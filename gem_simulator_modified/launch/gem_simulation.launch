@@ -23,9 +23,12 @@
 
         <!-- Sensor settings -->
         <arg name="velodyne_points" value="true" />
-        <arg name="laser_points" value="false" />
+        <arg name="laser_points" value="true" />
     </include>
 
     <!-- Launch robot localization -->
     <include file="$(find gem_localization)/launch/robot_localization.launch" />
+
+    <!-- Launch costmap -->
+    <include file="$(find gem_path_tracking)/launch/costmap.launch" />
 </launch>

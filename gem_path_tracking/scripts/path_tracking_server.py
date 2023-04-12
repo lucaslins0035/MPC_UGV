@@ -9,6 +9,8 @@ import numpy as np
 import math
 import tf2_ros
 from ackermann_msgs.msg import AckermannDrive
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
 from gem_interfaces.msg import TrackPathAction, TrackPathResult
@@ -28,6 +30,9 @@ class TrackPathServer:
 
         self.ackerman_pub = rospy.Publisher(
             'ackermann_cmd', AckermannDrive, queue_size=10)
+
+        self.local_plan_pub = rospy.Publisher(
+            'local_plan', Path, queue_size=10)
 
         self.server = actionlib.SimpleActionServer(
             'track_path', TrackPathAction, self.execute_action, False)
@@ -224,6 +229,9 @@ class TrackPathServer:
 
         self.path_index = 0
         self.path_tracking_error = []
+        
+        local_plan = Path()
+        local_plan.header.frame_id = 'odom'
 
         # Run control loop until the robot is less then 0.25 m away from the last pose of the path
         rospy.loginfo("Starting control loop")
@@ -268,10 +276,21 @@ class TrackPathServer:
                 self.path_tracking_error.append(dist)
                 rospy.loginfo_throttle(
                     1.0, "Path tracking error: {}".format(dist))
+            
+            # Publish local plan
+            preds_x = self.mpc.data.prediction(('_x', 'x'))[0,:,0]
+            preds_y = self.mpc.data.prediction(('_x', 'y'))[0,:,0]
+            local_plan.poses.clear()
+            for i in range(len(preds_x)):
+                pose = PoseStamped()
+                pose.pose.position.x = preds_x[i]
+                pose.pose.position.y = preds_y[i]
+                local_plan.poses.append(pose)
+            self.local_plan_pub.publish(local_plan)
 
             elapsed = (rospy.get_rostime()-start_loop_time).to_sec()
             if elapsed > self.mpc.t_step:
-                rospy.logwarn_throttle(1.0, "Control loop failed to meet period of {}. Took {}".format(
+                rospy.logwarn("Control loop failed to meet period of {}. Took {}".format(
                     self.mpc.t_step, elapsed))
 
             control_rate.sleep()

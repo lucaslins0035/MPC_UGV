@@ -17,7 +17,7 @@
     <sensor type="ray" name="sick_lms291">
       <pose>0 0 0 0 0 0</pose>
       <visualize>true</visualize>
-      <update_rate>75</update_rate>
+      <update_rate>10</update_rate>
       <ray>
         <scan>
           <horizontal>
@@ -35,7 +35,7 @@
       </ray>
       <plugin name="sick_lms291_controller" filename="libgazebo_ros_laser.so">
 	 <topicName>front_laser_points</topicName>
-        <update_rate>75</update_rate>
+        <update_rate>10</update_rate>
         <frameName>front_laser_link</frameName>
         <gaussianNoise>0.02</gaussianNoise>
       </plugin>
