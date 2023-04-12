@@ -2,14 +2,12 @@
 
 import threading
 import rospy
-import roslib
 import actionlib
 import do_mpc
 import casadi as cdi
 import numpy as np
 import math
 import tf2_ros
-import time
 from ackermann_msgs.msg import AckermannDrive
 from tf.transformations import euler_from_quaternion
 
@@ -20,6 +18,8 @@ class TrackPathServer:
     def __init__(self):
         self.init_tf = None
         self.stop_getting_tf = False
+        self.path_tracking_accuracy = []
+        self.path_index = 0
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
@@ -39,7 +39,6 @@ class TrackPathServer:
     def get_tf(self):
         tf_rate = rospy.Rate(10)
         while not self.stop_getting_tf:
-            # with self.tf_lock:
             try:
                 trans = self.tfBuffer.lookup_transform(
                     'odom', 'base_footprint', rospy.Time())
@@ -213,7 +212,6 @@ class TrackPathServer:
                 2.0, "Waiting for a TF from 'odom' to 'base_footprint' to became available.")
 
         # Get initial state
-        # with self.tf_lock:
         x0 = self.init_tf
 
         self.mpc.x0 = x0
@@ -223,13 +221,17 @@ class TrackPathServer:
 
         control_rate = rospy.Rate(1/self.mpc.t_step)
 
+        self.path_index = 0
+        self.path_tracking_accuracy = []
+
         # Run control loop until the robot is less then 0.25 m away from the last pose of the path
+        rospy.loginfo("Starting control loop")
         while not rospy.is_shutdown() and \
                 len(self.path_x_cp) > 1 and \
                 len(self.path_y_cp) > 1 and \
                 math.sqrt((x0[0, 0]-self.path_x_cp[-1])**2 + (x0[1, 0]-self.path_y_cp[-1])**2) > 0.25:
 
-            start_loop_time = time.time()
+            start_loop_time = rospy.get_rostime()
 
             # Remove reached or passed path points
             while math.sqrt((x0[0, 0]-self.path_x_cp[0])**2 + (x0[1, 0]-self.path_y_cp[0])**2) < 2.0 and \
@@ -237,12 +239,13 @@ class TrackPathServer:
                     len(self.path_y_cp) > 1:
                 self.path_x_cp.pop(0)
                 self.path_y_cp.pop(0)
+                self.path_index = self.path_index + 1
 
             # Run the optimizer to find the next control effort
-            t = time.time()
+            t = rospy.get_rostime()
             u0 = self.mpc.make_step(x0)
-            rospy.loginfo("MPC time: {}".format(
-                round((time.time()-t)*1000, 2)))
+            rospy.loginfo("MPC time: {} ms".format(
+                (rospy.get_rostime() - t).to_sec()*1000))
 
             # Publish control effort
             control_msg = AckermannDrive()
@@ -250,7 +253,24 @@ class TrackPathServer:
             control_msg.steering_angle = u0[1]
             self.ackerman_pub.publish(control_msg)
 
-            elapsed = round((time.time()-start_loop_time), 2)
+            # Calculate robot distance to path
+            if self.path_index >= 1:
+                dist = abs(
+                    (goal.path.poses[self.path_index].pose.position.x -
+                     goal.path.poses[self.path_index-1].pose.position.x) *
+                    (goal.path.poses[self.path_index-1].pose.position.y - x0[1, 0]) -
+                    (goal.path.poses[self.path_index-1].pose.position.x - x0[0, 0]) *
+                    (goal.path.poses[self.path_index].pose.position.y -
+                     goal.path.poses[self.path_index-1].pose.position.y)
+                ) / math.sqrt((goal.path.poses[self.path_index].pose.position.x -
+                               goal.path.poses[self.path_index-1].pose.position.x)**2 +
+                              (goal.path.poses[self.path_index].pose.position.y -
+                               goal.path.poses[self.path_index-1].pose.position.y)**2)
+                self.path_tracking_accuracy.append(dist)
+                rospy.loginfo_throttle(
+                    1.0, "Path tracking error: {}".format(dist))
+
+            elapsed = (rospy.get_rostime()-start_loop_time).to_sec()
             if elapsed > self.mpc.t_step:
                 rospy.logwarn_throttle(1.0, "Control loop failed to meet period of {}. Took {}".format(
                     self.mpc.t_step, elapsed))
@@ -258,7 +278,6 @@ class TrackPathServer:
             control_rate.sleep()
 
             # Get next state
-            #with self.tf_lock:
             x0 = self.init_tf
 
         self.server.set_succeeded()
