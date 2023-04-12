@@ -1,7 +1,6 @@
 <launch>
     <node pkg="robot_localization" type="navsat_transform_node"
         name="navsat_transform_node" respawn="true" output="screen">
-        <!-- <remap to="/wamv/sensors/gps/gps/fix" from="/gps/fix" /> -->
         <rosparam command="load" file="$(find gem_localization)/config/navsat_transform.yaml" />
     </node>
 
