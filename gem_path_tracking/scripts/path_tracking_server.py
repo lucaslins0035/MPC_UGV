@@ -9,7 +9,7 @@ import numpy as np
 import math
 import tf2_ros
 from ackermann_msgs.msg import AckermannDrive
-from nav_msgs.msg import Path
+from nav_msgs.msg import Path, OccupancyGrid
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
@@ -34,12 +34,45 @@ class TrackPathServer:
         self.local_plan_pub = rospy.Publisher(
             'local_plan', Path, queue_size=10)
 
+        self.costmap = None
+        self.costmap_res = None
+        self.costmap_size = None
+        self.costmap_pub = rospy.Subscriber(
+            '/costmap_node/costmap/costmap', OccupancyGrid, self.costmap_cb)
+
         self.server = actionlib.SimpleActionServer(
             'track_path', TrackPathAction, self.execute_action, False)
         self.server.start()
 
         rospy.sleep(2.0)
         rospy.loginfo("Server initialized")
+
+    def get_cell_cost(self, x, y):
+        diff_x = x - self.costmap_orig[0]
+        diff_y = y - self.costmap_orig[1]
+
+        if diff_x < self.costmap_size[0] and \
+                diff_y < self.costmap_size[1]:
+            return self.costmap[int((self.costmap_size[1]-diff_y)/self.costmap_res),
+                                int(diff_x/self.costmap_res)]
+
+        return 0.0
+
+    def costmap_cb(self, msg):
+        if self.costmap is None:
+            self.costmap_res = msg.info.resolution
+            self.costmap_size = (msg.info.width*self.costmap_res,
+                                 msg.info.height*self.costmap_res)
+            
+            rospy.loginfo("Res "+str(self.costmap_res))
+            rospy.loginfo("Size "+str(self.costmap_size))
+        
+        rospy.loginfo("Update")
+        
+        self.costmap = np.array(msg.data).reshape(msg.info.height,
+                                                  msg.info.width)
+        self.costmap_orig = [msg.info.origin.position.x,
+                             msg.info.origin.position.y]
 
     def get_tf(self):
         tf_rate = rospy.Rate(10)
@@ -111,7 +144,7 @@ class TrackPathServer:
         n_horizon = 20
         setup_mpc = {
             'n_horizon': n_horizon,
-            't_step': 0.1,
+            't_step': 0.2,
             'store_full_solution': True,
             'nlpsol_opts': {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
         }
@@ -229,7 +262,7 @@ class TrackPathServer:
 
         self.path_index = 0
         self.path_tracking_error = []
-        
+
         local_plan = Path()
         local_plan.header.frame_id = 'odom'
 
@@ -276,10 +309,10 @@ class TrackPathServer:
                 self.path_tracking_error.append(dist)
                 rospy.loginfo_throttle(
                     1.0, "Path tracking error: {}".format(dist))
-            
+
             # Publish local plan
-            preds_x = self.mpc.data.prediction(('_x', 'x'))[0,:,0]
-            preds_y = self.mpc.data.prediction(('_x', 'y'))[0,:,0]
+            preds_x = self.mpc.data.prediction(('_x', 'x'))[0, :, 0]
+            preds_y = self.mpc.data.prediction(('_x', 'y'))[0, :, 0]
             local_plan.poses.clear()
             for i in range(len(preds_x)):
                 pose = PoseStamped()
