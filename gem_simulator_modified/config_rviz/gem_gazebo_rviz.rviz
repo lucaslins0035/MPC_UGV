@@ -7,6 +7,8 @@ Panels:
         - /Global Options1
         - /VLP-161
         - /TF1/Frames1
+        - /GlobalPlan1
+        - /Costmap1
       Splitter Ratio: 0.4746136963367462
     Tree Height: 797
   - Class: rviz/Selection
@@ -109,8 +111,6 @@ Visualization Manager:
           Value: true
         base_link:
           Value: true
-        center_footprint:
-          Value: true
         center_link:
           Value: true
         chair_link:
@@ -199,8 +199,6 @@ Visualization Manager:
                 GPS_link:
                   {}
                 IMU_link:
-                  {}
-                center_footprint:
                   {}
                 chair_link:
                   {}
@@ -295,8 +293,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 0.4399999976158142
-        Min Value: 0.4399999976158142
+        Max Value: -9999
+        Min Value: 9999
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -367,7 +365,7 @@ Visualization Manager:
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz/Map
-      Color Scheme: costmap
+      Color Scheme: map
       Draw Behind: false
       Enabled: true
       Name: Costmap
@@ -436,7 +434,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 13.916163444519043
+      Distance: 10.284858703613281
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -444,17 +442,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 4.517246723175049
-        Y: 0.36661142110824585
-        Z: -0.0007058467017486691
+        X: 3.505211114883423
+        Y: -0.01888616569340229
+        Z: -0.7175357341766357
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.974796712398529
+      Pitch: 0.8847965598106384
       Target Frame: base_footprint
-      Yaw: 3.2853989601135254
+      Yaw: 2.1903998851776123
     Saved: ~
 Window Geometry:
   Displays:
