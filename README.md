@@ -17,7 +17,7 @@ This section describes the MPC implementation and the ROS nodes developed.
 
 The path-tracking MPC is based on the kinematic model of an Ackermann vehicle. The model uses the [x, y, theta] as states, theta being the orientation of the robot and [v, psi] as inputs, v being the robot's linear velocity, and psi the steering angle. The parameter L is the wheelbase. The formulas are shown below.
 
-![model equations](docs/model_equations.png)
+![model equations](docs/model_eqs.png)
 
 The code was all developed in Python using [do-mpc](https://www.do-mpc.com/en/latest/index.html), a Python framework for prototyping and solving MPC problems. This framework uses [CasADi](https://web.casadi.org/docs/) under the hood to define and solve the problem, which contains efficient solvers that deal with highly non-linear optimization problems.
 
