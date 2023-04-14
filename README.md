@@ -15,9 +15,7 @@ This section describes the MPC implementation and the ROS nodes developed.
 
 ### The MPC
 
-The path-tracking MPC is based on the kinematic model of an Ackermann vehicle. Different from the simplest formulation of this model, which considers the reference point in the middle of the two rear wheels, the model used here considers it to be in the center of the car. This modification allows us to consider the robot as being a circle, which makes implementing obstacle avoidance a way easier and less expensive computationally.
-
-The model uses the [x, y, theta] as states, theta being the orientation of the robot and [v, psi] as inputs, v being the robot's linear velocity, and psi the steering angle. The formulas are shown below.
+The path-tracking MPC is based on the kinematic model of an Ackermann vehicle. The model uses the [x, y, theta] as states, theta being the orientation of the robot and [v, psi] as inputs, v being the robot's linear velocity, and psi the steering angle. The parameter L is the wheelbase. The formulas are shown below.
 
 ![model equations](docs/model_equations.png)
 
@@ -27,7 +25,7 @@ The objective function of the controller is the sum of the squared differences b
 
 One of the main advantages of MPC is that it allows for setting constraints on the system. A constraint of 1.2 m/s (4.3 km/h) was applied to the robot's linear velocity, which limits its forward and backward motion. This limitation is important because the model does not consider the robot's mass and dynamic properties, so slowing it down brings its behavior closer to the model. Furthermore, a constraint of 0.78 rad (45°) was applied to the steering angle, to avoid surpassing the joint's limits.
 
-To add obstacle avoidance, more constraints on the robot's position were added. Considering the circumscribed radius of the robot and the obstacle's radius, the distance from the robot's center (its x and y states) to the obstacle's center (x,y) must be bigger than the sum of both radii. Note that by considering the robot a circle, the theta state is irrelevant. The obstacles positions were acquired by the `/gazebo/model_states` topic. Since it is updated in runtime, this method works for both static and moving obstacles.
+To add obstacle avoidance, more constraints on the robot's position were added. Considering the circumscribed radius of the robot and the obstacle's radius, the distance from the robot's center (its x and y states) to the obstacle's center (x,y) must be bigger than the sum of both radii. Note that by considering the robot a circle, the theta state is irrelevant, and even thought it does not consider the actual geometry of the robot, it is less expensive computationally. The obstacles positions were acquired by the `/gazebo/model_states` topic. Since it is updated in runtime, this method works for both static and moving obstacles.
 
 > A costmap version of the obstacle avoidance functionality is present in the branch `add/costmap_obs_avoidance`. It works, but it is yet computationally impractical. The control loop is taking 4 s for a 16 m^2 map with 0.5 m resolution.
 

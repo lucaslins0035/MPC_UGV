@@ -90,14 +90,12 @@ class TrackPathServer:
             var_type='_x', var_name='y', shape=(1, 1))
         self.state_theta = self.model.set_variable(
             var_type='_x', var_name='theta', shape=(1, 1))
-        # psi = self.model.set_variable(var_type='_x', var_name='psi', shape=(1, 1))
 
         # Input variables
         self.input_v = self.model.set_variable(
             var_type='_u', var_name='v', shape=(1, 1))
         self.input_psi = self.model.set_variable(
             var_type='_u', var_name='psi', shape=(1, 1))
-        # psi_dot = self.model.set_variable(var_type='_u', var_name='psi_dot', shape=(1, 1))
 
         # Sys parameters
         self.param_l = self.model.set_variable(
@@ -114,10 +112,6 @@ class TrackPathServer:
             var_type='_tvp', var_name='theta_set', shape=(1, 1))
         self.tvp_obstacles = self.model.set_variable(
             var_type='_tvp', var_name='obstacles', shape=(len(self.gz_model_states), 2))
-        # self.tvp_x1 = self.model.set_variable(
-        #     var_type='_tvp', var_name='x1', shape=(1, 1))
-        # self.tvp_y1 = self.model.set_variable(
-        #     var_type='_tvp', var_name='y1', shape=(1, 1))
 
         # Set right-hand side
         self.model.set_rhs('x', self.input_v*cdi.cos(self.state_theta))
@@ -185,29 +179,14 @@ class TrackPathServer:
             tvp_template['_tvp', :,
                          'obstacles'] = obstacles_pos
 
-            # tvp_template['_tvp', :,
-            #              'x1'] = self.path_x_cp[self.path_index-1]
-            # tvp_template['_tvp', :,
-            #              'y1'] = self.path_y_cp[self.path_index-1]
-
             return tvp_template
 
         self.mpc.set_tvp_fun(partial(tvp_fun, poses=action_goal.path.poses))
 
         # Constraints
 
-        # States
-        # mpc.bounds['upper', '_x', 'x'] = 10.0
-        # mpc.bounds['lower', '_x', 'x'] = -10.0
-
-        # mpc.bounds['upper', '_x', 'y'] = 10.0
-        # mpc.bounds['lower', '_x', 'y'] = -10.0
-
         self.mpc.bounds['upper', '_x', 'theta'] = 2*np.pi
         self.mpc.bounds['lower', '_x', 'theta'] = -2*np.pi
-
-        # mpc.bounds['upper', '_x', 'psi'] = 0.78  # rad
-        # mpc.bounds['lower', '_x', 'psi'] = -0.78  # rad
 
         # Inputs
         self.mpc.bounds['upper', '_u', 'v'] = 1.2  # m/s
@@ -216,19 +195,7 @@ class TrackPathServer:
         self.mpc.bounds['upper', '_u', 'psi'] = 0.78  # rad
         self.mpc.bounds['lower', '_u', 'psi'] = -0.78  # rad
 
-        # mpc.bounds['upper', '_u', 'psi_dot'] = 10.0  # rad/s
-        # mpc.bounds['lower', '_u', 'psi_dot'] = -10.0  # rad/s
-
         # NL Constraints
-
-        # self.mpc.set_nl_cons(
-        #     'dist_less_one',  ((self.tvp_x_set - self.tvp_x1) *
-        #                        (self.tvp_y1 - self.state_y) -
-        #                        (self.tvp_x1 - self.state_x) *
-        #                        (self.tvp_y_set - self.tvp_y1)
-        #                        )**2 / ((self.tvp_x_set - self.tvp_x1)**2 +
-        #                                (self.tvp_y_set - self.tvp_y1)**2), ub=0.9**2,
-        #     soft_constraint=True, penalty_term_cons=1000)
 
         for i in np.arange(self.tvp_obstacles.shape[0]):
             self.mpc.set_nl_cons('obstacle'+str(i), (self.param_car_radius+0.5)**2 -
