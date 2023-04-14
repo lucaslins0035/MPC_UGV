@@ -78,7 +78,7 @@ if __name__ == '__main__':
     client.client.wait_for_result()
 
     result_msg = client.client.get_result()
-    
+
     # Plot path tracking error
     fig = plt.figure(figsize=(12, 12))
     ax = fig.add_subplot(1, 1, 1)
@@ -95,5 +95,8 @@ if __name__ == '__main__':
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Track Error (m)")
 
-    ax.plot(np.arange(len(result_msg.path_tracking_error))*0.1, result_msg.path_tracking_error)
-    plt.savefig('/home/lucas/polaris_ws/src/MPC_UGV/study/foo.png')
+    ax.plot(np.arange(len(result_msg.path_tracking_error))
+            * 0.25, result_msg.path_tracking_error)
+
+    plt.savefig(os.path.join(
+        os.path.dirname(__file__), 'path_tracking_error.png'))
