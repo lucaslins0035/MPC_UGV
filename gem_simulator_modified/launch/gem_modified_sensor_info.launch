@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Vehicle settings -->
+  <node name="gem_sensor_info" pkg="gem_gazebo" type="gem_sensor_info.py">
+    <remap from="/gem/sensor_info" to="/sensor_info"/>  
+    <remap from="/gem/gps/fix" to="/gps/fix"/>  
+    <remap from="/gem/imu" to="/imu"/>  
+    <remap from="/gem/base_footprint/odom" to="ground_truth_odom"/>  
+  </node>
+
+</launch>

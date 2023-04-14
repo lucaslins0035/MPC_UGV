@@ -1,0 +1,34 @@
+<launch>
+    <!-- Launch Gazebo Simulation -->
+    <include file="$(find gem_simulator_modified)/launch/gem_modified_gazebo_rviz.launch">
+        <!-- Gazebo settings -->
+        <arg name="cmd_timeout" value="1.0" />
+        <arg name="paused" value="false" />
+        <arg name="use_sim_time" value="true" />
+        <arg name="gui" value="true" />
+        <arg name="headless" value="false" />
+        <arg name="debug" value="false" />
+        <arg name="verbose" value="false" />
+        <arg name="world_name"
+            value="$(find gem_simulator_modified)/worlds/simple_track_green2.world" />
+        <arg name="use_rviz" value="true" />
+
+        <!-- Vehicle pose -->
+        <arg name="x" value="0" />
+        <arg name="y" value="-1.0" />
+        <arg name="z" value="0.05" />
+        <arg name="yaw" value="0.0" />
+        <arg name="roll" value="0.0" />
+        <arg name="pitch" value="0.0" />
+
+        <!-- Sensor settings -->
+        <arg name="velodyne_points" value="true" />
+        <arg name="laser_points" value="false" />
+    </include>
+
+    <!-- Launch robot localization -->
+    <include file="$(find gem_localization)/launch/robot_localization.launch" />
+
+    <!-- Launch node to move the obstacles -->
+    <node name="move_obstacles" pkg="gem_simulator_modified" type="move_obstacles.py" respawn="true"/>
+</launch>
