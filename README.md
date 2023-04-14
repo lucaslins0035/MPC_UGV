@@ -2,7 +2,7 @@
 
 This repository contains a path-tracking MPC (Model Predictive Controller) for the [Polaris GEM e2 Simulator](https://gitlab.engr.illinois.edu/gemillins/POLARIS_GEM_e2/-/tree/main/). The controller relies on the odometry provided by an EKF from the package `robot_localization`, which is based solely on the car's IMU and GPS.
 
-In addition to the controller, this repository contains some modified files from both the `gem_gazebo` and `gem_description` packages, from the original repository, which is in the package `gem_simulator_modified`. This modified version fixes a bug concerning the `frame_if` field of the LiDAR's point-cloud message that prevented the data from being visualized in Rviz. Moreover, it adapts some aspects that are important for the controller, such as having the `base_footprint` frame right below the `center_link` (in the middle of the car) instead of in the middle of the two rear wheels. However, other files and scripts from the original repository are still used. I tried to change as less as possible.
+In addition to the controller, this repository contains some modified files from both the `gem_gazebo` and `gem_description` packages, from the original repository, which is in the package `gem_simulator_modified`. This modified version fixes a bug concerning the `frame_if` field of the LiDAR's point-cloud message that prevented the data from being visualized in Rviz. Moreover, it adapts some aspects that are important for the controller, such as having the `base_footprint` frame right below the `center_link` (in the middle of the car) instead of in the middle of the two rear wheels. However, other files and scripts from the original repository are still used.
 
 The code was developed in Ubuntu 20.04 with ROS Noetic.
 
