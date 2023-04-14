@@ -10,7 +10,7 @@
         <arg name="debug" value="false" />
         <arg name="verbose" value="false" />
         <arg name="world_name"
-            value="$(find gem_simulator_modified)/worlds/simple_track_green.world" />
+            value="$(find gem_simulator_modified)/worlds/simple_track_green2.world" />
         <arg name="use_rviz" value="true" />
 
         <!-- Vehicle pose -->
@@ -23,12 +23,12 @@
 
         <!-- Sensor settings -->
         <arg name="velodyne_points" value="true" />
-        <arg name="laser_points" value="true" />
+        <arg name="laser_points" value="false" />
     </include>
 
     <!-- Launch robot localization -->
     <include file="$(find gem_localization)/launch/robot_localization.launch" />
 
     <!-- Launch costmap -->
-    <include file="$(find gem_path_tracking)/launch/costmap.launch" />
+    <!-- <include file="$(find gem_path_tracking)/launch/costmap.launch" /> -->
 </launch>

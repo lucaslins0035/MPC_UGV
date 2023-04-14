@@ -70,12 +70,12 @@
   </node>
 
   <!-- Control the steering, axel joints. -->
-  <node name="ackermann_controller" pkg="gem_gazebo" type="gem_control.py">
+  <node name="ackermann_controller" pkg="gem_gazebo" type="gem_control.py" respawn="true">
     <param name="cmd_timeout" value="$(arg cmd_timeout)" />
     <rosparam file="$(find gem_gazebo)/config/gem_ackermann_control_params.yaml" command="load" />
   </node>
 
-  <node name="gem_cmdvel" pkg="gem_gazebo" type="gem_cmdvel.py">
+  <node name="gem_cmdvel" pkg="gem_gazebo" type="gem_cmdvel.py" respawn="true">
     <remap from="/gem/cmd_vel" to="/cmd_vel" />
     <remap from="/gem/ackermann_cmd" to="/ackermann_cmd" />
   </node>

@@ -47,7 +47,7 @@ class TrackPathClient:
         with open(filename) as f:
             path_points = [tuple(line) for line in csv.reader(f)]
 
-        for i in range(675, len(path_points)):
+        for i in range(675, 1500):
             if i % 25 == 0:
                 pose = PoseStamped()
                 pose.header.frame_id = 'odom'

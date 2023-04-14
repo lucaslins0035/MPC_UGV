@@ -9,8 +9,9 @@ import numpy as np
 import math
 import tf2_ros
 from ackermann_msgs.msg import AckermannDrive
-from nav_msgs.msg import Path, OccupancyGrid
+from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
+from gazebo_msgs.msg import ModelStates
 from tf.transformations import euler_from_quaternion
 
 from gem_interfaces.msg import TrackPathAction, TrackPathResult
@@ -34,11 +35,9 @@ class TrackPathServer:
         self.local_plan_pub = rospy.Publisher(
             'local_plan', Path, queue_size=10)
 
-        self.costmap = None
-        self.costmap_res = None
-        self.costmap_size = None
-        self.costmap_pub = rospy.Subscriber(
-            '/costmap_node/costmap/costmap', OccupancyGrid, self.costmap_cb)
+        self.gz_model_states = {}
+        self.gz_model_states_sub = rospy.Subscriber(
+            '/gazebo/model_states', ModelStates, self.gz_model_states_cb)
 
         self.server = actionlib.SimpleActionServer(
             'track_path', TrackPathAction, self.execute_action, False)
@@ -47,32 +46,17 @@ class TrackPathServer:
         rospy.sleep(2.0)
         rospy.loginfo("Server initialized")
 
-    def get_cell_cost(self, x, y):
-        diff_x = x - self.costmap_orig[0]
-        diff_y = y - self.costmap_orig[1]
-
-        if diff_x < self.costmap_size[0] and \
-                diff_y < self.costmap_size[1]:
-            return self.costmap[int((self.costmap_size[1]-diff_y)/self.costmap_res),
-                                int(diff_x/self.costmap_res)]
-
-        return 0.0
-
-    def costmap_cb(self, msg):
-        if self.costmap is None:
-            self.costmap_res = msg.info.resolution
-            self.costmap_size = (msg.info.width*self.costmap_res,
-                                 msg.info.height*self.costmap_res)
-            
-            rospy.loginfo("Res "+str(self.costmap_res))
-            rospy.loginfo("Size "+str(self.costmap_size))
-        
-        rospy.loginfo("Update")
-        
-        self.costmap = np.array(msg.data).reshape(msg.info.height,
-                                                  msg.info.width)
-        self.costmap_orig = [msg.info.origin.position.x,
-                             msg.info.origin.position.y]
+    def gz_model_states_cb(self, msg):
+        if len(self.gz_model_states) == 0:
+            for i, name in enumerate(msg.name):
+                if name.find('unit_cylinder') != -1:
+                    self.gz_model_states.update({name: [msg.pose[i].position.x,
+                                                        msg.pose[i].position.y]})
+        else:
+            for i, name in enumerate(msg.name):
+                if name.find('unit_cylinder') != -1:
+                    self.gz_model_states[name] = [msg.pose[i].position.x,
+                                                  msg.pose[i].position.y]
 
     def get_tf(self):
         tf_rate = rospy.Rate(10)
@@ -125,6 +109,8 @@ class TrackPathServer:
             var_type='_tvp', var_name='x_set', shape=(1, 1))
         self.tvp_y_set = self.model.set_variable(
             var_type='_tvp', var_name='y_set', shape=(1, 1))
+        self.tvp_obstacles = self.model.set_variable(
+            var_type='_tvp', var_name='obstacles', shape=(len(self.gz_model_states), 2))
 
         # Set right-hand side
         self.model.set_rhs('x', self.input_v*cdi.cos(self.state_theta))
@@ -162,13 +148,7 @@ class TrackPathServer:
             psi=1e0)
 
         # Parameters
-        p_template = self.mpc.get_p_template(1)
-        p_template['_p', 0] = np.array([1.75, 0.82])
-
-        def p(t_now):
-            return p_template
-
-        self.mpc.set_p_fun(p)
+        self.mpc.set_uncertainty_values(l=[1.75], car_radius=[1.5])
 
         # Time-varying Parameters
         tvp_template = self.mpc.get_tvp_template()
@@ -179,11 +159,17 @@ class TrackPathServer:
             pose.pose.position.y for pose in action_goal.path.poses]
 
         def tvp_fun(t_now):
-            for k in range(n_horizon+1):
-                tvp_template['_tvp', k,
-                             'x_set'] = self.path_x_cp[self.path_index]
-                tvp_template['_tvp', k,
-                             'y_set'] = self.path_y_cp[self.path_index]
+            tvp_template['_tvp', :,
+                         'x_set'] = self.path_x_cp[self.path_index]
+            tvp_template['_tvp', :,
+                         'y_set'] = self.path_y_cp[self.path_index]
+
+            obstacles_pos = np.zeros(self.tvp_obstacles.shape)
+            for i, obst in enumerate(self.gz_model_states.values()):
+                obstacles_pos[i, :] = np.array(obst)
+
+            tvp_template['_tvp', :,
+                         'obstacles'] = obstacles_pos
 
             return tvp_template
 
@@ -216,15 +202,11 @@ class TrackPathServer:
 
         # NL Constraints
 
-        # circles = [
-        #     [1.0, 1.8, 0.2],
-        #     [5.0, 3.4, 0.2],
-        #     # [5.1, 5.5, 0.1],
-        # ]
-
-        # for i, circle in enumerate(circles):
-        #     self.mpc.set_nl_cons('obstacle'+str(i), (self.param_car_radius+circle[2]) - cdi.sqrt(
-        #         (self.state_x-circle[0])**2 + (self.state_y-circle[1])**2), ub=0.0, soft_constraint=True)
+        for i in np.arange(self.tvp_obstacles.shape[0]):
+            self.mpc.set_nl_cons('obstacle'+str(i), (self.param_car_radius+0.5)**2 -
+                                 (self.state_x-self.tvp_obstacles[i, 0])**2 - (
+                                     self.state_y-self.tvp_obstacles[i, 1])**2,
+                                 ub=0.0, soft_constraint=True)
 
         self.mpc.setup()
         rospy.loginfo("MPC setup finish successfully!")
@@ -276,7 +258,8 @@ class TrackPathServer:
             start_loop_time = rospy.get_rostime()
 
             # Remove reached or passed path points
-            while math.sqrt((x0[0, 0]-self.path_x_cp[self.path_index])**2 + (x0[1, 0]-self.path_y_cp[self.path_index])**2) < 2.0 and \
+            while (math.sqrt(
+                (x0[0, 0]-self.path_x_cp[self.path_index])**2 + (x0[1, 0]-self.path_y_cp[self.path_index])**2) < 3.0) and \
                     self.path_index < len(self.path_x_cp)-1 and \
                     self.path_index < len(self.path_y_cp)-1:
                 self.path_index = self.path_index + 1
