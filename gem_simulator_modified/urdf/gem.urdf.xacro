@@ -2,7 +2,7 @@
 
 <robot name="gem" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:property name="steer_angle" value="0.61"/>
+  <xacro:property name="steer_angle" value="0.78"/>
   <xacro:property name="PI" value="3.1415926835897931"/>
 
   <xacro:property name="tyre_length" value="0.16"/>

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from functools import partial
 import threading
 import rospy
 import actionlib
@@ -109,8 +110,14 @@ class TrackPathServer:
             var_type='_tvp', var_name='x_set', shape=(1, 1))
         self.tvp_y_set = self.model.set_variable(
             var_type='_tvp', var_name='y_set', shape=(1, 1))
+        self.tvp_theta_set = self.model.set_variable(
+            var_type='_tvp', var_name='theta_set', shape=(1, 1))
         self.tvp_obstacles = self.model.set_variable(
             var_type='_tvp', var_name='obstacles', shape=(len(self.gz_model_states), 2))
+        # self.tvp_x1 = self.model.set_variable(
+        #     var_type='_tvp', var_name='x1', shape=(1, 1))
+        # self.tvp_y1 = self.model.set_variable(
+        #     var_type='_tvp', var_name='y1', shape=(1, 1))
 
         # Set right-hand side
         self.model.set_rhs('x', self.input_v*cdi.cos(self.state_theta))
@@ -130,21 +137,22 @@ class TrackPathServer:
         n_horizon = 20
         setup_mpc = {
             'n_horizon': n_horizon,
-            't_step': 0.2,
+            't_step': 0.25,
             'store_full_solution': True,
             'nlpsol_opts': {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
         }
         self.mpc.set_param(**setup_mpc)
 
         # Objective function
-        lterm = 1e-2 * (self.state_x - self.tvp_x_set)**2 + 1e-2 * \
-            (self.state_y - self.tvp_y_set)**2  # + 1*(theta - 0)**2
+        lterm = 1e-2 * (self.state_x - self.tvp_x_set)**2 + \
+            1e-2 * (self.state_y - self.tvp_y_set)**2 + \
+            5e-3 * (self.state_theta - self.tvp_theta_set)**2
         mterm = lterm
 
         self.mpc.set_objective(mterm=mterm, lterm=lterm)
 
         self.mpc.set_rterm(
-            v=1e2,
+            v=1e0,
             psi=1e0)
 
         # Parameters
@@ -157,23 +165,34 @@ class TrackPathServer:
             pose.pose.position.x for pose in action_goal.path.poses]
         self.path_y_cp = [
             pose.pose.position.y for pose in action_goal.path.poses]
+        self.path_theta_cp = [
+            euler_from_quaternion((pose.pose.orientation.x,
+                                   pose.pose.orientation.y,
+                                   pose.pose.orientation.z,
+                                   pose.pose.orientation.w))[2] for pose in action_goal.path.poses]
 
-        def tvp_fun(t_now):
+        def tvp_fun(t_now, poses):
             tvp_template['_tvp', :,
                          'x_set'] = self.path_x_cp[self.path_index]
             tvp_template['_tvp', :,
                          'y_set'] = self.path_y_cp[self.path_index]
+            tvp_template['_tvp', :,
+                         'theta_set'] = self.path_theta_cp[self.path_index]
 
             obstacles_pos = np.zeros(self.tvp_obstacles.shape)
             for i, obst in enumerate(self.gz_model_states.values()):
                 obstacles_pos[i, :] = np.array(obst)
-
             tvp_template['_tvp', :,
                          'obstacles'] = obstacles_pos
 
+            # tvp_template['_tvp', :,
+            #              'x1'] = self.path_x_cp[self.path_index-1]
+            # tvp_template['_tvp', :,
+            #              'y1'] = self.path_y_cp[self.path_index-1]
+
             return tvp_template
 
-        self.mpc.set_tvp_fun(tvp_fun)
+        self.mpc.set_tvp_fun(partial(tvp_fun, poses=action_goal.path.poses))
 
         # Constraints
 
@@ -191,16 +210,25 @@ class TrackPathServer:
         # mpc.bounds['lower', '_x', 'psi'] = -0.78  # rad
 
         # Inputs
-        self.mpc.bounds['upper', '_u', 'v'] = 1.5  # m/s
-        self.mpc.bounds['lower', '_u', 'v'] = -1.5  # m/s
+        self.mpc.bounds['upper', '_u', 'v'] = 1.2  # m/s
+        self.mpc.bounds['lower', '_u', 'v'] = -1.2  # m/s
 
-        self.mpc.bounds['upper', '_u', 'psi'] = 0.61  # rad
-        self.mpc.bounds['lower', '_u', 'psi'] = -0.61  # rad
+        self.mpc.bounds['upper', '_u', 'psi'] = 0.78  # rad
+        self.mpc.bounds['lower', '_u', 'psi'] = -0.78  # rad
 
         # mpc.bounds['upper', '_u', 'psi_dot'] = 10.0  # rad/s
         # mpc.bounds['lower', '_u', 'psi_dot'] = -10.0  # rad/s
 
         # NL Constraints
+
+        # self.mpc.set_nl_cons(
+        #     'dist_less_one',  ((self.tvp_x_set - self.tvp_x1) *
+        #                        (self.tvp_y1 - self.state_y) -
+        #                        (self.tvp_x1 - self.state_x) *
+        #                        (self.tvp_y_set - self.tvp_y1)
+        #                        )**2 / ((self.tvp_x_set - self.tvp_x1)**2 +
+        #                                (self.tvp_y_set - self.tvp_y1)**2), ub=0.9**2,
+        #     soft_constraint=True, penalty_term_cons=1000)
 
         for i in np.arange(self.tvp_obstacles.shape[0]):
             self.mpc.set_nl_cons('obstacle'+str(i), (self.param_car_radius+0.5)**2 -
@@ -210,6 +238,18 @@ class TrackPathServer:
 
         self.mpc.setup()
         rospy.loginfo("MPC setup finish successfully!")
+
+    def get_dist_to_path(self, poses, x, y):
+        return abs((poses[self.path_index].pose.position.x -
+                    poses[self.path_index-1].pose.position.x) *
+                   (poses[self.path_index-1].pose.position.y - y) -
+                   (poses[self.path_index-1].pose.position.x - x) *
+                   (poses[self.path_index].pose.position.y -
+                    poses[self.path_index-1].pose.position.y)
+                   ) / math.sqrt((poses[self.path_index].pose.position.x -
+                                  poses[self.path_index-1].pose.position.x)**2 +
+                                 (poses[self.path_index].pose.position.y -
+                                  poses[self.path_index-1].pose.position.y)**2)
 
     def execute_action(self, goal):
         rospy.loginfo("Goal received")
@@ -253,13 +293,13 @@ class TrackPathServer:
         while not rospy.is_shutdown() and \
                 self.path_index <= len(self.path_x_cp)-1 and \
                 self.path_index <= len(self.path_y_cp)-1 and \
-                math.sqrt((x0[0, 0]-self.path_x_cp[-1])**2 + (x0[1, 0]-self.path_y_cp[-1])**2) > 0.5:
+                math.sqrt((x0[0, 0]-self.path_x_cp[-1])**2 + (x0[1, 0]-self.path_y_cp[-1])**2) > 0.75:
 
             start_loop_time = rospy.get_rostime()
 
             # Remove reached or passed path points
             while (math.sqrt(
-                (x0[0, 0]-self.path_x_cp[self.path_index])**2 + (x0[1, 0]-self.path_y_cp[self.path_index])**2) < 3.0) and \
+                (x0[0, 0]-self.path_x_cp[self.path_index])**2 + (x0[1, 0]-self.path_y_cp[self.path_index])**2) < 4.0) and \
                     self.path_index < len(self.path_x_cp)-1 and \
                     self.path_index < len(self.path_y_cp)-1:
                 self.path_index = self.path_index + 1
@@ -278,17 +318,8 @@ class TrackPathServer:
 
             # Calculate robot distance to path
             if self.path_index >= 1:
-                dist = abs(
-                    (goal.path.poses[self.path_index].pose.position.x -
-                     goal.path.poses[self.path_index-1].pose.position.x) *
-                    (goal.path.poses[self.path_index-1].pose.position.y - x0[1, 0]) -
-                    (goal.path.poses[self.path_index-1].pose.position.x - x0[0, 0]) *
-                    (goal.path.poses[self.path_index].pose.position.y -
-                     goal.path.poses[self.path_index-1].pose.position.y)
-                ) / math.sqrt((goal.path.poses[self.path_index].pose.position.x -
-                               goal.path.poses[self.path_index-1].pose.position.x)**2 +
-                              (goal.path.poses[self.path_index].pose.position.y -
-                               goal.path.poses[self.path_index-1].pose.position.y)**2)
+                dist = self.get_dist_to_path(
+                    goal.path.poses, x0[0, 0], x0[1, 0])
                 self.path_tracking_error.append(dist)
                 rospy.loginfo_throttle(
                     1.0, "Path tracking error: {}".format(dist))
