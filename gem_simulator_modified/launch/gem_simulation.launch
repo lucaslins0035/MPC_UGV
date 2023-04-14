@@ -29,6 +29,6 @@
     <!-- Launch robot localization -->
     <include file="$(find gem_localization)/launch/robot_localization.launch" />
 
-    <!-- Launch costmap -->
-    <!-- <include file="$(find gem_path_tracking)/launch/costmap.launch" /> -->
+    <!-- Launch node to move the obstacles -->
+    <node name="move_obstacles" pkg="gem_simulator_modified" type="move_obstacles.py" respawn="true"/>
 </launch>
