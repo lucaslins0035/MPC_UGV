@@ -114,6 +114,8 @@ Finally, create the container by running:
 docker run --name gem_path_tracking --gpus all --network host --env=DISPLAY --env=NVIDIA_DRIVER_CAPABILITIES=all --env=NVIDIA-VISIBLE_DEVICES=all --env=QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix:rw --runtime=nvidia --privileged -it test_gem_path_tracking:latest
 ```
 
+> Inside the container, there is a convenient script that sources all the environments and make the terminal window more attractive. Once you are in the container, run `. /rsource.sh`.
+
 ## Running
 
 To launch the simulation run:
